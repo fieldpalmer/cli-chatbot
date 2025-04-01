@@ -1,0 +1,31 @@
+{
+     "name": "cli-chatbot",
+     "version": "1.0.0",
+     "description": "",
+     "type": "module",
+     "main": "index.js",
+     "scripts": {
+          "dev": "tsx --watch src/index.ts",
+          "build": "tsc",
+          "start": "node dist/index.js"
+     },
+     "repository": {
+          "type": "git",
+          "url": "git+https://github.com/fieldpalmer/cli-chatbot.git"
+     },
+     "keywords": [],
+     "author": "",
+     "license": "ISC",
+     "bugs": {
+          "url": "https://github.com/fieldpalmer/cli-chatbot/issues"
+     },
+     "homepage": "https://github.com/fieldpalmer/cli-chatbot#readme",
+     "devDependencies": {
+          "@types/node": "^22.13.15",
+          "tsx": "^4.19.3",
+          "typescript": "^5.8.2"
+     },
+     "dependencies": {
+          "dotenv": "^16.4.7"
+     }
+}
