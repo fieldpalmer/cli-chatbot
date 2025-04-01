@@ -26,6 +26,8 @@
           "typescript": "^5.8.2"
      },
      "dependencies": {
+          "@langchain/core": "^0.3.43",
+          "@langchain/openai": "^0.5.2",
           "dotenv": "^16.4.7"
      }
 }
