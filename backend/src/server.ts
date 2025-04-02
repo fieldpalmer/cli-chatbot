@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import chatRouter from './routes/chat';
-
+import historyRouter from './routes/history';
 dotenv.config();
 
 const app = express();
@@ -12,7 +12,7 @@ app.use(cors());
 app.use(express.json());
 
 app.use('/chat', chatRouter);
-
+app.use('/history', historyRouter);
 app.get('/', (_, res) => {
      res.send('🤖 LangChain Chatbot API is live');
 });
