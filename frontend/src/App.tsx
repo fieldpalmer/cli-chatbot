@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 
-const API_URL = 'http://localhost:3001/chat';
-const HISTORY_URL = 'http://localhost:3001/history';
+const API_URL = 'https://chatbot-backend-blond-three.vercel.app/chat';
+const HISTORY_URL = 'https://chatbot-backend-blond-three.vercel.app/history';
 
 type Message = {
      role: 'user' | 'bot';
@@ -40,7 +40,7 @@ const App: React.FC = () => {
           const chatNum = sessions.length + 1;
           const name = `Chat ${chatNum}`;
 
-          await axios.post('http://localhost:3001/history', {
+          await axios.post('https://chatbot-backend-blond-three.vercel.app/history', {
                id: newId,
                name
           });
@@ -140,9 +140,12 @@ const App: React.FC = () => {
                                              onChange={(e) => setRenameValue(e.target.value)}
                                              onKeyDown={async (e) => {
                                                   if (e.key === 'Enter') {
-                                                       await axios.patch(`http://localhost:3001/history/${sesh.id}`, {
-                                                            name: renameValue
-                                                       });
+                                                       await axios.patch(
+                                                            `https://chatbot-backend-blond-three.vercel.app/history/${sesh.id}`,
+                                                            {
+                                                                 name: renameValue
+                                                            }
+                                                       );
                                                        const updatedSessions = sessions.map((s) =>
                                                             s.id === sesh.id ? { ...s, name: renameValue } : s
                                                        );
@@ -174,7 +177,9 @@ const App: React.FC = () => {
                                    </button>
                                    <button
                                         onClick={async () => {
-                                             await axios.delete(`http://localhost:3001/history/${sesh.id}`);
+                                             await axios.delete(
+                                                  `https://chatbot-backend-blond-three.vercel.app/history/${sesh.id}`
+                                             );
                                              setSessions(sessions.filter((s) => s.id !== sesh.id));
                                              if (sessionId === sesh.id) {
                                                   setSessionId(sessions[0]?.id || '');
