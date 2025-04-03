@@ -35,14 +35,20 @@ const App: React.FC = () => {
           const chatNum = sessions.length + 1;
           const name = `Chat ${chatNum}`;
 
-          await axios.post('https://chatbot-backend-blond-three.vercel.app/history', {
-               id: newId,
-               name
-          });
+          try {
+               const res = await axios.post(`${HISTORY_URL}`, { id: newId, name });
 
-          setSessionId(newId);
-          setMessages([]);
-          setSessions([{ id: newId, name }, ...sessions]);
+               if (res.status === 201) {
+                    const updatedSessions = [{ id: newId, name }, ...sessions];
+                    setSessions(updatedSessions);
+                    setSessionId(newId);
+                    setMessages([]);
+               } else {
+                    console.error('❌ Unexpected response from backend:', res);
+               }
+          } catch (err) {
+               console.error('🔥 Error creating new session:', err);
+          }
      };
 
      const fetchSessions = async () => {
@@ -51,13 +57,21 @@ const App: React.FC = () => {
      };
 
      const fetchHistory = async (session: string) => {
-          const res = await axios.get(`${HISTORY_URL}/${session}`);
-          const formatted = res.data.map((msg: any) => ({
-               role: msg.role,
-               content: msg.content,
-               timestamp: new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          }));
-          setMessages(formatted);
+          try {
+               const res = await axios.get(`${HISTORY_URL}/${session}`);
+               const formatted = res.data.map((msg: any) => ({
+                    role: msg.role,
+                    content: msg.content,
+                    timestamp: new Date(msg.timestamp).toLocaleTimeString([], {
+                         hour: '2-digit',
+                         minute: '2-digit'
+                    })
+               }));
+               setMessages(formatted);
+          } catch (err) {
+               console.error(`❌ Error fetching history for session "${session}":`, err);
+               setMessages([]); // fallback: clear messages on failure
+          }
      };
 
      useEffect(() => {

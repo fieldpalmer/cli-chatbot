@@ -40,18 +40,21 @@ router.get('/:sessionId', async (req, res) => {
 router.post('/', (async (req, res) => {
      const { id, name } = req.body;
 
+     console.log('📦 New session payload:', { id, name }); // ✅ Log input
+
      if (!id || !name) {
           return res.status(400).json({ error: 'Missing id or name' });
      }
 
      try {
-          await prisma.session.create({
+          const session = await prisma.session.create({
                data: { id, name }
           });
 
+          console.log('✅ Session created:', session);
           res.status(201).json({ message: 'Session created' });
      } catch (err) {
-          console.error('🔥 Error creating session:', err);
+          console.error('🔥 Prisma session.create error:', err); // ✅ Log failure
           res.status(500).json({ error: 'Failed to create session' });
      }
 }) as RequestHandler);
