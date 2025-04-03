@@ -5,7 +5,13 @@ import historyRouter from '../src/routes/history';
 import cors from 'cors';
 
 const app = express();
-app.use(cors());
+app.use(
+     cors({
+          origin: 'https://fieldpalmer.github.io',
+          methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+          allowedHeaders: ['Content-Type']
+     })
+);
 app.use(express.json());
 
 app.use('/chat', chatRouter);

@@ -28,11 +28,6 @@ const App: React.FC = () => {
      const [renamingId, setRenamingId] = useState<string | null>(null);
      const [renameValue, setRenameValue] = useState('');
 
-     useEffect(() => {
-          const root = document.documentElement;
-          darkMode ? root.classList.add('dark') : root.classList.remove('dark');
-     }, [darkMode]);
-
      const generateSessionId = () => `session-${Date.now()}`;
 
      const createNewSession = async () => {
@@ -66,8 +61,16 @@ const App: React.FC = () => {
      };
 
      useEffect(() => {
+          const root = document.documentElement;
+          darkMode ? root.classList.add('dark') : root.classList.remove('dark');
+     }, [darkMode]);
+
+     useEffect(() => {
           fetchSessions();
-          fetchHistory(sessionId);
+     }, []);
+
+     useEffect(() => {
+          if (sessionId) fetchHistory(sessionId);
      }, [sessionId]);
 
      const sendMessage = async () => {
