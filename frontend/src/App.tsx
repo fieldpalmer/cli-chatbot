@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 
-const API_URL = 'https://chatbot-backend-blond-three.vercel.app/chat';
-const HISTORY_URL = 'https://chatbot-backend-blond-three.vercel.app/history';
+const API_URL = 'http://localhost:3001/chat';
+const HISTORY_URL = 'http://localhost:3001/history';
 
 type Message = {
      role: 'user' | 'bot';
@@ -28,6 +28,11 @@ const App: React.FC = () => {
      const [renamingId, setRenamingId] = useState<string | null>(null);
      const [renameValue, setRenameValue] = useState('');
 
+     useEffect(() => {
+          const root = document.documentElement;
+          darkMode ? root.classList.add('dark') : root.classList.remove('dark');
+     }, [darkMode]);
+
      const generateSessionId = () => `session-${Date.now()}`;
 
      const createNewSession = async () => {
@@ -35,20 +40,14 @@ const App: React.FC = () => {
           const chatNum = sessions.length + 1;
           const name = `Chat ${chatNum}`;
 
-          try {
-               const res = await axios.post(`${HISTORY_URL}`, { id: newId, name });
+          await axios.post('http://localhost:3001/history', {
+               id: newId,
+               name
+          });
 
-               if (res.status === 201) {
-                    const updatedSessions = [{ id: newId, name }, ...sessions];
-                    setSessions(updatedSessions);
-                    setSessionId(newId);
-                    setMessages([]);
-               } else {
-                    console.error('❌ Unexpected response from backend:', res);
-               }
-          } catch (err) {
-               console.error('🔥 Error creating new session:', err);
-          }
+          setSessionId(newId);
+          setMessages([]);
+          setSessions([{ id: newId, name }, ...sessions]);
      };
 
      const fetchSessions = async () => {
@@ -57,34 +56,18 @@ const App: React.FC = () => {
      };
 
      const fetchHistory = async (session: string) => {
-          try {
-               const res = await axios.get(`${HISTORY_URL}/${session}`);
-               const formatted = res.data.map((msg: any) => ({
-                    role: msg.role,
-                    content: msg.content,
-                    timestamp: new Date(msg.timestamp).toLocaleTimeString([], {
-                         hour: '2-digit',
-                         minute: '2-digit'
-                    })
-               }));
-               setMessages(formatted);
-          } catch (err) {
-               console.error(`❌ Error fetching history for session "${session}":`, err);
-               setMessages([]); // fallback: clear messages on failure
-          }
+          const res = await axios.get(`${HISTORY_URL}/${session}`);
+          const formatted = res.data.map((msg: any) => ({
+               role: msg.role,
+               content: msg.content,
+               timestamp: new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          }));
+          setMessages(formatted);
      };
 
      useEffect(() => {
-          const root = document.documentElement;
-          darkMode ? root.classList.add('dark') : root.classList.remove('dark');
-     }, [darkMode]);
-
-     useEffect(() => {
           fetchSessions();
-     }, []);
-
-     useEffect(() => {
-          if (sessionId) fetchHistory(sessionId);
+          fetchHistory(sessionId);
      }, [sessionId]);
 
      const sendMessage = async () => {
@@ -157,12 +140,9 @@ const App: React.FC = () => {
                                              onChange={(e) => setRenameValue(e.target.value)}
                                              onKeyDown={async (e) => {
                                                   if (e.key === 'Enter') {
-                                                       await axios.patch(
-                                                            `https://chatbot-backend-blond-three.vercel.app/history/${sesh.id}`,
-                                                            {
-                                                                 name: renameValue
-                                                            }
-                                                       );
+                                                       await axios.patch(`http://localhost:3001/history/${sesh.id}`, {
+                                                            name: renameValue
+                                                       });
                                                        const updatedSessions = sessions.map((s) =>
                                                             s.id === sesh.id ? { ...s, name: renameValue } : s
                                                        );
@@ -194,9 +174,7 @@ const App: React.FC = () => {
                                    </button>
                                    <button
                                         onClick={async () => {
-                                             await axios.delete(
-                                                  `https://chatbot-backend-blond-three.vercel.app/history/${sesh.id}`
-                                             );
+                                             await axios.delete(`http://localhost:3001/history/${sesh.id}`);
                                              setSessions(sessions.filter((s) => s.id !== sesh.id));
                                              if (sessionId === sesh.id) {
                                                   setSessionId(sessions[0]?.id || '');
