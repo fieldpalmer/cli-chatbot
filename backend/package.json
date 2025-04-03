@@ -4,7 +4,7 @@
      "description": "",
      "main": "index.js",
      "scripts": {
-          "dev": "ts-node api/index.ts",
+          "dev": "ts-node src/server.ts",
           "build": "tsc",
           "postinstall": "prisma generate"
      },
