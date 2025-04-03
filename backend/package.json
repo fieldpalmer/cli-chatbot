@@ -4,17 +4,22 @@
      "description": "",
      "main": "index.js",
      "scripts": {
-          "test": "echo \"Error: no test specified\" && exit 1",
-          "dev": "ts-node-dev --respawn src/server.ts"
+          "dev": "ts-node api/index.ts",
+          "build": "tsc",
+          "postinstall": "prisma generate"
      },
      "keywords": [],
      "author": "",
      "license": "ISC",
      "type": "commonjs",
+     "prisma": {
+          "schema": "prisma/schema.prisma"
+     },
      "dependencies": {
           "@langchain/core": "^0.3.43",
           "@langchain/openai": "^0.5.2",
           "@prisma/client": "^6.5.0",
+          "@vercel/node": "^3.0.0",
           "body-parser": "^2.2.0",
           "cors": "^2.8.5",
           "dotenv": "^16.4.7",
