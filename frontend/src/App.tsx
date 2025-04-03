@@ -2,9 +2,6 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 
-const API_URL = 'http://localhost:3001/chat';
-const HISTORY_URL = 'http://localhost:3001/history';
-
 type Message = {
      role: 'user' | 'bot';
      content: string;
@@ -16,7 +13,10 @@ type Session = {
      name: string;
 };
 
-const formatTime = (date: Date) => date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+type ErrorState = {
+     message: string;
+     isError: boolean;
+};
 
 const App: React.FC = () => {
      const [darkMode, setDarkMode] = useState(true);
@@ -27,47 +27,102 @@ const App: React.FC = () => {
      const [sessions, setSessions] = useState<Session[]>([]);
      const [renamingId, setRenamingId] = useState<string | null>(null);
      const [renameValue, setRenameValue] = useState('');
+     const [error, setError] = useState<ErrorState>({ message: '', isError: false });
+
+     const formatTime = (date: Date) => date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+     // Use local backend in development, Vercel in production
+     const BASE_URL = import.meta.env.DEV ? 'http://localhost:3001' : 'https://chatbot-backend-blond-three.vercel.app';
+
+     const API_URL = `${BASE_URL}/chat`;
+     const HISTORY_URL = `${BASE_URL}/history`;
+
+     const generateSessionId = () => `session-${Date.now()}`;
+
+     const createNewSession = async () => {
+          try {
+               const newId = generateSessionId();
+               const chatNum = sessions.length + 1;
+               const name = `Chat ${chatNum}`;
+
+               const res = await axios.post(`${HISTORY_URL}`, { id: newId, name });
+
+               if (res.status === 201) {
+                    const newSession = { id: newId, name };
+                    const updated = [newSession, ...sessions.filter((s) => s.id !== newId)];
+                    setSessions(updated);
+                    setSessionId(newId);
+                    setMessages([]);
+                    setError({ message: '', isError: false });
+               }
+          } catch (err) {
+               console.error('Error creating session:', err);
+               setError({
+                    message: 'Failed to create new chat session. Please try again.',
+                    isError: true
+               });
+          }
+     };
+
+     const fetchSessions = async (attempt = 1) => {
+          try {
+               const res = await axios.get(`${HISTORY_URL}/sessions`);
+               if (res.status === 200) {
+                    const sessionArray = res.data.map((session: { id: string; name: string }) => ({
+                         id: session.id,
+                         name: session.name
+                    }));
+                    setSessions(sessionArray);
+                    setError({ message: '', isError: false });
+               }
+          } catch (err) {
+               console.error(`Attempt ${attempt} failed fetching sessions:`, err);
+               if (attempt < 3) {
+                    setTimeout(() => fetchSessions(attempt + 1), 2000 * attempt); // Increased delay
+               } else {
+                    setError({
+                         message: 'Failed to load chat sessions. Please refresh the page.',
+                         isError: true
+                    });
+               }
+          }
+     };
+
+     const fetchHistory = async (session: string) => {
+          try {
+               const res = await axios.get(`${HISTORY_URL}/${session}`);
+               if (res.status === 200) {
+                    const formatted = res.data.map((msg: any) => ({
+                         role: msg.role,
+                         content: msg.content,
+                         timestamp: new Date(msg.timestamp).toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit'
+                         })
+                    }));
+                    setMessages(formatted);
+                    setError({ message: '', isError: false });
+               }
+          } catch (err) {
+               console.error('Error fetching history:', err);
+               setError({
+                    message: 'Failed to load chat history. Please try again.',
+                    isError: true
+               });
+          }
+     };
 
      useEffect(() => {
           const root = document.documentElement;
           darkMode ? root.classList.add('dark') : root.classList.remove('dark');
      }, [darkMode]);
 
-     const generateSessionId = () => `session-${Date.now()}`;
-
-     const createNewSession = async () => {
-          const newId = generateSessionId();
-          const chatNum = sessions.length + 1;
-          const name = `Chat ${chatNum}`;
-
-          await axios.post('http://localhost:3001/history', {
-               id: newId,
-               name
-          });
-
-          setSessionId(newId);
-          setMessages([]);
-          setSessions([{ id: newId, name }, ...sessions]);
-     };
-
-     const fetchSessions = async () => {
-          const res = await axios.get(`${HISTORY_URL}/sessions`);
-          setSessions(res.data);
-     };
-
-     const fetchHistory = async (session: string) => {
-          const res = await axios.get(`${HISTORY_URL}/${session}`);
-          const formatted = res.data.map((msg: any) => ({
-               role: msg.role,
-               content: msg.content,
-               timestamp: new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          }));
-          setMessages(formatted);
-     };
-
      useEffect(() => {
           fetchSessions();
-          fetchHistory(sessionId);
+     }, []);
+
+     useEffect(() => {
+          if (sessionId) fetchHistory(sessionId);
      }, [sessionId]);
 
      const sendMessage = async () => {
@@ -81,6 +136,7 @@ const App: React.FC = () => {
 
           setMessages((prev) => [...prev, userMessage]);
           setLoading(true);
+          setError({ message: '', isError: false });
 
           try {
                const res = await axios.post(API_URL, {
@@ -88,22 +144,28 @@ const App: React.FC = () => {
                     sessionId
                });
 
-               const botMessage = {
-                    role: 'bot' as const,
-                    content: res.data.reply,
-                    timestamp: formatTime(new Date())
-               };
-
-               setMessages((prev) => [...prev, botMessage]);
+               if (res.status === 200) {
+                    const botMessage = {
+                         role: 'bot' as const,
+                         content: res.data.reply,
+                         timestamp: formatTime(new Date())
+                    };
+                    setMessages((prev) => [...prev, botMessage]);
+               }
           } catch (err) {
+               console.error('Error sending message:', err);
                setMessages((prev) => [
                     ...prev,
                     {
                          role: 'bot',
-                         content: '❌ Error: Failed to get response.',
+                         content: '❌ Error: Failed to get response. Please try again.',
                          timestamp: formatTime(new Date())
                     }
                ]);
+               setError({
+                    message: 'Failed to send message. Please try again.',
+                    isError: true
+               });
           } finally {
                setInput('');
                setLoading(false);
@@ -193,6 +255,15 @@ const App: React.FC = () => {
                <div className='flex-1 p-6 flex flex-col items-center'>
                     <div className='w-full max-w-2xl'>
                          <h1 className='text-2xl font-bold text-center mb-4'>🧠 LangChain Chatbot</h1>
+
+                         {error.isError && (
+                              <div
+                                   className='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4'
+                                   role='alert'
+                              >
+                                   <span className='block sm:inline'>{error.message}</span>
+                              </div>
+                         )}
 
                          <div className='bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 h-[70vh] overflow-y-auto space-y-4 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100 dark:scrollbar-thumb-gray-600 dark:scrollbar-track-gray-900'>
                               {messages.map((msg, i) => (

@@ -1,5 +1,6 @@
 import express, { Request, Response, RequestHandler } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { getResponse } from '../llm/chatEngine';
 
 const prisma = new PrismaClient();
 const router = express.Router();
@@ -40,21 +41,20 @@ router.get('/:sessionId', async (req, res) => {
 router.post('/', (async (req, res) => {
      const { id, name } = req.body;
 
-     console.log('📦 New session payload:', { id, name }); // ✅ Log input
-
      if (!id || !name) {
           return res.status(400).json({ error: 'Missing id or name' });
      }
 
      try {
           const session = await prisma.session.create({
-               data: { id, name }
+               data: {
+                    id,
+                    name
+               }
           });
-
-          console.log('✅ Session created:', session);
-          res.status(201).json({ message: 'Session created' });
+          res.status(201).json(session);
      } catch (err) {
-          console.error('🔥 Prisma session.create error:', err); // ✅ Log failure
+          console.error('Error creating session:', err);
           res.status(500).json({ error: 'Failed to create session' });
      }
 }) as RequestHandler);

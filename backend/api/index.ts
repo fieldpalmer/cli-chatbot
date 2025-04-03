@@ -5,13 +5,19 @@ import historyRouter from '../src/routes/history';
 import cors from 'cors';
 
 const app = express();
-app.use(
-     cors({
-          origin: 'https://fieldpalmer.github.io',
-          methods: ['GET', 'POST', 'PATCH', 'DELETE'],
-          allowedHeaders: ['Content-Type']
-     })
-);
+
+// Configure CORS based on environment
+const corsOptions = {
+     origin:
+          process.env.NODE_ENV === 'production'
+               ? 'https://fieldpalmer.github.io'
+               : ['http://localhost:5173', 'http://localhost:3000'],
+     methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+     allowedHeaders: ['Content-Type'],
+     credentials: true
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 app.use('/chat', chatRouter);
