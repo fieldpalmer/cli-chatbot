@@ -41,14 +41,18 @@ router.post('/', (async (req, res) => {
      const { id, name } = req.body;
 
      if (!id || !name) {
-          return res.status(400).json({ error: 'id and name required' });
+          return res.status(400).json({ error: 'Missing id or name' });
      }
 
      try {
-          const created = await prisma.session.create({ data: { id, name } });
-          res.json(created);
+          await prisma.session.create({
+               data: { id, name }
+          });
+
+          res.status(201).json({ message: 'Session created' });
      } catch (err) {
-          res.status(500).json({ error: 'Failed to create session.' });
+          console.error('🔥 Error creating session:', err);
+          res.status(500).json({ error: 'Failed to create session' });
      }
 }) as RequestHandler);
 
