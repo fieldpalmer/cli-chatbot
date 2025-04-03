@@ -19,6 +19,7 @@ type Session = {
 const formatTime = (date: Date) => date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
 const App: React.FC = () => {
+     const [darkMode, setDarkMode] = useState(true);
      const [input, setInput] = useState('');
      const [messages, setMessages] = useState<Message[]>([]);
      const [loading, setLoading] = useState(false);
@@ -26,6 +27,11 @@ const App: React.FC = () => {
      const [sessions, setSessions] = useState<Session[]>([]);
      const [renamingId, setRenamingId] = useState<string | null>(null);
      const [renameValue, setRenameValue] = useState('');
+
+     useEffect(() => {
+          const root = document.documentElement;
+          darkMode ? root.classList.add('dark') : root.classList.remove('dark');
+     }, [darkMode]);
 
      const generateSessionId = () => `session-${Date.now()}`;
 
@@ -105,8 +111,17 @@ const App: React.FC = () => {
      };
 
      return (
-          <div className='flex min-h-screen bg-gray-100 font-sans'>
-               <div className='w-80 bg-white shadow-md p-4 border-r'>
+          <div className='flex min-h-screen font-sans bg-gray-100 dark:bg-gray-900 text-black dark:text-white'>
+               <div className='absolute top-4 right-4'>
+                    <button
+                         onClick={() => setDarkMode((prev) => !prev)}
+                         className='px-3 py-1 rounded text-sm border hover:bg-gray-200 dark:hover:bg-gray-700'
+                    >
+                         {darkMode ? '🌞 Light Mode' : '🌙 Dark Mode'}
+                    </button>
+               </div>
+
+               <div className='w-80 bg-white dark:bg-gray-800 shadow-md p-4 border-r border-gray-200 dark:border-gray-700'>
                     <button
                          onClick={createNewSession}
                          className='w-full bg-green-500 text-white font-semibold rounded mb-4 p-2 hover:bg-green-600'
@@ -179,7 +194,7 @@ const App: React.FC = () => {
                     <div className='w-full max-w-2xl'>
                          <h1 className='text-2xl font-bold text-center mb-4'>🧠 LangChain Chatbot</h1>
 
-                         <div className='bg-white rounded-lg shadow-md p-4 h-[70vh] overflow-y-auto space-y-4'>
+                         <div className='bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 h-[70vh] overflow-y-auto space-y-4 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100 dark:scrollbar-thumb-gray-600 dark:scrollbar-track-gray-900'>
                               {messages.map((msg, i) => (
                                    <div
                                         key={i}
@@ -191,8 +206,10 @@ const App: React.FC = () => {
                                              </div>
                                         )}
                                         <div
-                                             className={`max-w-[75%] p-3 rounded-xl relative text-sm ${
-                                                  msg.role === 'user' ? 'bg-green-100 text-right' : 'bg-gray-200'
+                                             className={`max-w-[75%] p-3 rounded-xl relative text-sm  ${
+                                                  msg.role === 'user'
+                                                       ? 'bg-green-100 text-right dark:bg-green-900'
+                                                       : 'bg-gray-200 dark:bg-gray-900'
                                              }`}
                                         >
                                              <ReactMarkdown
@@ -229,7 +246,7 @@ const App: React.FC = () => {
                                    onChange={(e) => setInput(e.target.value)}
                                    onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
                                    placeholder='Type a message...'
-                                   className='flex-grow px-4 py-2 rounded-l-md border border-gray-300 focus:outline-none'
+                                   className='flex-grow px-4 py-2 rounded-l-md border border-gray-300 focus:outline-none dark:bg-gray-800 dark:text-white'
                                    disabled={loading}
                               />
                               <button
