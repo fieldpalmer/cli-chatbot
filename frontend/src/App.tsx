@@ -10,6 +10,7 @@ import {
      addMessage,
      getSessionMessages
 } from './services/firebase';
+import { getAIResponse } from './services/ai';
 
 type ErrorState = {
      message: string;
@@ -138,12 +139,16 @@ const App: React.FC = () => {
           setError({ message: '', isError: false });
 
           try {
+               // Save user message
                await addMessage(userMessage);
 
-               // TODO: Replace this with your AI service call
+               // Get AI response
+               const aiReply = await getAIResponse(input, sessionId);
+
+               // Create and save bot message
                const botMessage: Omit<Message, 'id'> = {
                     role: 'bot',
-                    content: 'This is a placeholder response. Replace with actual AI response.',
+                    content: aiReply,
                     timestamp: new Date(),
                     sessionId
                };
