@@ -1,21 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import {
-     Message,
-     Session,
-     createSession,
-     getSessions,
-     deleteSession,
-     renameSession,
-     addMessage,
-     getSessionMessages
-} from './services/firebase';
+import { rtdb } from './firebase';
+import { ref, push, set, onValue, remove } from 'firebase/database';
 import { getAIResponse } from './services/ai';
 
-type ErrorState = {
-     message: string;
-     isError: boolean;
-};
+interface Message {
+     role: 'user' | 'bot';
+     content: string;
+     timestamp: number;
+}
+
+interface Session {
+     id: string;
+     name: string;
+     createdAt: number;
+     messages?: Record<string, Message>;
+}
 
 const App: React.FC = () => {
      const [darkMode, setDarkMode] = useState(true);
@@ -26,7 +26,7 @@ const App: React.FC = () => {
      const [sessions, setSessions] = useState<Session[]>([]);
      const [renamingId, setRenamingId] = useState<string | null>(null);
      const [renameValue, setRenameValue] = useState('');
-     const [error, setError] = useState<ErrorState>({ message: '', isError: false });
+     const [error, setError] = useState<{ message: string; isError: boolean }>({ message: '', isError: false });
 
      useEffect(() => {
           const root = document.documentElement;
@@ -39,48 +39,48 @@ const App: React.FC = () => {
 
      // Fetch sessions on mount
      useEffect(() => {
-          const loadSessions = async () => {
-               try {
-                    const fetchedSessions = await getSessions();
-                    setSessions(fetchedSessions);
-                    if (fetchedSessions.length > 0) {
-                         setSessionId(fetchedSessions[0].id);
+          const sessionsRef = ref(rtdb, 'sessions');
+          onValue(sessionsRef, (snapshot) => {
+               const data = snapshot.val();
+               if (data) {
+                    const sessionsList = Object.entries(data).map(([id, session]: [string, any]) => ({
+                         id,
+                         name: session.name,
+                         createdAt: session.createdAt
+                    }));
+                    setSessions(sessionsList);
+                    if (!sessionId && sessionsList.length > 0) {
+                         setSessionId(sessionsList[0].id);
                     }
-               } catch (err) {
-                    console.error('Error fetching sessions:', err);
-                    setError({
-                         message: 'Failed to load chat sessions. Please refresh the page.',
-                         isError: true
-                    });
                }
-          };
-          loadSessions();
+          });
      }, []);
 
      // Fetch messages when session changes
      useEffect(() => {
-          const loadMessages = async () => {
-               if (!sessionId) return;
-               try {
-                    const fetchedMessages = await getSessionMessages(sessionId);
-                    setMessages(fetchedMessages);
-               } catch (err) {
-                    console.error('Error fetching messages:', err);
-                    setError({
-                         message: 'Failed to load chat history. Please try again.',
-                         isError: true
-                    });
+          if (!sessionId) return;
+          const messagesRef = ref(rtdb, `sessions/${sessionId}/messages`);
+          onValue(messagesRef, (snapshot) => {
+               const data = snapshot.val();
+               if (data) {
+                    const messagesList = Object.values(data).sort((a: any, b: any) => a.timestamp - b.timestamp);
+                    setMessages(messagesList as Message[]);
+               } else {
+                    setMessages([]);
                }
-          };
-          loadMessages();
+          });
      }, [sessionId]);
 
      const handleCreateSession = async () => {
           try {
                const chatNum = sessions.length + 1;
-               const newSession = await createSession(`Chat ${chatNum}`);
-               setSessions([newSession, ...sessions]);
-               setSessionId(newSession.id);
+               const sessionsRef = ref(rtdb, 'sessions');
+               const newSessionRef = push(sessionsRef);
+               await set(newSessionRef, {
+                    name: `Chat ${chatNum}`,
+                    createdAt: Date.now()
+               });
+               setSessionId(newSessionRef.key!);
                setMessages([]);
                setError({ message: '', isError: false });
           } catch (err) {
@@ -94,8 +94,8 @@ const App: React.FC = () => {
 
      const handleDeleteSession = async (id: string) => {
           try {
-               await deleteSession(id);
-               setSessions(sessions.filter((s) => s.id !== id));
+               const sessionRef = ref(rtdb, `sessions/${id}`);
+               await remove(sessionRef);
                if (sessionId === id) {
                     const remainingSessions = sessions.filter((s) => s.id !== id);
                     setSessionId(remainingSessions[0]?.id || '');
@@ -112,8 +112,8 @@ const App: React.FC = () => {
 
      const handleRenameSession = async (id: string, newName: string) => {
           try {
-               await renameSession(id, newName);
-               setSessions(sessions.map((s) => (s.id === id ? { ...s, name: newName } : s)));
+               const sessionRef = ref(rtdb, `sessions/${id}/name`);
+               await set(sessionRef, newName);
                setRenamingId(null);
           } catch (err) {
                console.error('Error renaming session:', err);
@@ -127,34 +127,12 @@ const App: React.FC = () => {
      const sendMessage = async () => {
           if (!input.trim() || !sessionId) return;
 
-          const userMessage: Omit<Message, 'id'> = {
-               role: 'user',
-               content: input,
-               timestamp: new Date(),
-               sessionId
-          };
-
-          setMessages((prev) => [...prev, userMessage]);
           setLoading(true);
           setError({ message: '', isError: false });
 
           try {
-               // Save user message
-               await addMessage(userMessage);
-
-               // Get AI response
-               const aiReply = await getAIResponse(input, sessionId);
-
-               // Create and save bot message
-               const botMessage: Omit<Message, 'id'> = {
-                    role: 'bot',
-                    content: aiReply,
-                    timestamp: new Date(),
-                    sessionId
-               };
-
-               await addMessage(botMessage);
-               setMessages((prev) => [...prev, botMessage]);
+               const response = await getAIResponse(input, sessionId);
+               setInput('');
           } catch (err) {
                console.error('Error sending message:', err);
                setError({
@@ -162,7 +140,6 @@ const App: React.FC = () => {
                     isError: true
                });
           } finally {
-               setInput('');
                setLoading(false);
           }
      };
@@ -265,7 +242,7 @@ const App: React.FC = () => {
                                         >
                                              <ReactMarkdown>{msg.content}</ReactMarkdown>
                                              <div className='text-gray-500 text-xs mt-1'>
-                                                  {msg.timestamp.toLocaleTimeString([], {
+                                                  {new Date(msg.timestamp).toLocaleTimeString([], {
                                                        hour: '2-digit',
                                                        minute: '2-digit'
                                                   })}
