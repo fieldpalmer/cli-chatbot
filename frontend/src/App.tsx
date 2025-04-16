@@ -28,6 +28,7 @@ const App: React.FC = () => {
      const [renamingId, setRenamingId] = useState<string | null>(null);
      const [renameValue, setRenameValue] = useState('');
      const [error, setError] = useState<ErrorState>({ message: '', isError: false });
+     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
      const formatTime = (date: Date) => date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -173,17 +174,37 @@ const App: React.FC = () => {
      };
 
      return (
-          <div className='flex min-h-screen font-sans bg-gray-100 dark:bg-gray-900 text-black dark:text-white'>
-               <div className='absolute top-4 right-4'>
+          <div className='flex flex-col md:flex-row min-h-screen font-sans bg-gray-100 dark:bg-gray-900 text-black dark:text-white'>
+               <div className='absolute top-4 right-4 z-20'>
                     <button
-                         onClick={() => setDarkMode((prev) => !prev)}
-                         className='px-3 py-1 rounded text-sm border hover:bg-gray-200 dark:hover:bg-gray-700'
+                         onClick={() => setIsMenuOpen(!isMenuOpen)}
+                         className='md:hidden px-3 py-1 rounded text-sm border hover:bg-gray-200 dark:hover:bg-gray-700'
                     >
-                         {darkMode ? '🌞 Light Mode' : '🌙 Dark Mode'}
+                         {isMenuOpen ? '✕' : '☰'}
                     </button>
                </div>
 
-               <div className='w-80 bg-white dark:bg-gray-800 shadow-md p-4 border-r border-gray-200 dark:border-gray-700'>
+               {/* Mobile Menu Overlay */}
+               {isMenuOpen && (
+                    <div className='fixed inset-0 bg-black bg-opacity-50 z-10 md:hidden' onClick={() => setIsMenuOpen(false)} />
+               )}
+
+               {/* Sidebar */}
+               <div
+                    className={`fixed md:static inset-y-0 left-0 w-64 bg-white dark:bg-gray-800 shadow-md p-4 transform transition-transform duration-200 ease-in-out z-20 ${
+                         isMenuOpen ? 'translate-x-0' : '-translate-x-full'
+                    } md:translate-x-0 md:w-80`}
+               >
+                    <div className='flex justify-between items-center mb-4'>
+                         <h2 className='text-lg font-bold'>Sessions</h2>
+                         <button
+                              onClick={() => setDarkMode((prev) => !prev)}
+                              className='px-3 py-1 rounded text-sm border hover:bg-gray-200 dark:hover:bg-gray-700'
+                         >
+                              {darkMode ? '🌞 Light' : '🌙 Dark'}
+                         </button>
+                    </div>
+
                     <button
                          onClick={createNewSession}
                          className='w-full bg-green-500 text-white font-semibold rounded mb-4 p-2 hover:bg-green-600'
@@ -191,8 +212,7 @@ const App: React.FC = () => {
                          + New Chat
                     </button>
 
-                    <h2 className='text-lg font-bold mb-4'>Sessions</h2>
-                    <ul className='space-y-2'>
+                    <ul className='space-y-2 max-h-[calc(100vh-12rem)] overflow-y-auto'>
                          {sessions.map((sesh) => (
                               <li key={sesh.id} className='flex items-center justify-between'>
                                    {renamingId === sesh.id ? (
@@ -216,7 +236,10 @@ const App: React.FC = () => {
                                         />
                                    ) : (
                                         <button
-                                             onClick={() => setSessionId(sesh.id)}
+                                             onClick={() => {
+                                                  setSessionId(sesh.id);
+                                                  setIsMenuOpen(false);
+                                             }}
                                              className={`text-left w-full p-2 rounded ${
                                                   sesh.id === sessionId ? 'bg-blue-600 text-white' : 'hover:bg-gray-200'
                                              }`}
@@ -225,36 +248,39 @@ const App: React.FC = () => {
                                         </button>
                                    )}
 
-                                   <button
-                                        onClick={() => {
-                                             setRenamingId(sesh.id);
-                                             setRenameValue(sesh.name);
-                                        }}
-                                        className='ml-2 text-sm text-gray-500 hover:text-black'
-                                   >
-                                        ✏️
-                                   </button>
-                                   <button
-                                        onClick={async () => {
-                                             await axios.delete(`http://localhost:3001/history/${sesh.id}`);
-                                             setSessions(sessions.filter((s) => s.id !== sesh.id));
-                                             if (sessionId === sesh.id) {
-                                                  setSessionId(sessions[0]?.id || '');
-                                                  setMessages([]);
-                                             }
-                                        }}
-                                        className='ml-1 text-sm text-gray-400 hover:text-red-500'
-                                   >
-                                        🗑
-                                   </button>
+                                   <div className='flex space-x-1'>
+                                        <button
+                                             onClick={() => {
+                                                  setRenamingId(sesh.id);
+                                                  setRenameValue(sesh.name);
+                                             }}
+                                             className='text-sm text-gray-500 hover:text-black'
+                                        >
+                                             ✏️
+                                        </button>
+                                        <button
+                                             onClick={async () => {
+                                                  await axios.delete(`http://localhost:3001/history/${sesh.id}`);
+                                                  setSessions(sessions.filter((s) => s.id !== sesh.id));
+                                                  if (sessionId === sesh.id) {
+                                                       setSessionId(sessions[0]?.id || '');
+                                                       setMessages([]);
+                                                  }
+                                             }}
+                                             className='text-sm text-gray-400 hover:text-red-500'
+                                        >
+                                             🗑
+                                        </button>
+                                   </div>
                               </li>
                          ))}
                     </ul>
                </div>
 
-               <div className='flex-1 p-6 flex flex-col items-center'>
+               {/* Main Chat Area */}
+               <div className='flex-1 p-4 md:p-6 flex flex-col items-center'>
                     <div className='w-full max-w-2xl'>
-                         <h1 className='text-2xl font-bold text-center mb-4'>🧠 LangChain Chatbot</h1>
+                         <h1 className='text-xl md:text-2xl font-bold text-center mb-4'>🧠 LangChain Chatbot</h1>
 
                          {error.isError && (
                               <div
@@ -265,19 +291,19 @@ const App: React.FC = () => {
                               </div>
                          )}
 
-                         <div className='bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 h-[70vh] overflow-y-auto space-y-4 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100 dark:scrollbar-thumb-gray-600 dark:scrollbar-track-gray-900'>
+                         <div className='bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 h-[calc(100vh-16rem)] md:h-[70vh] overflow-y-auto space-y-4 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100 dark:scrollbar-thumb-gray-600 dark:scrollbar-track-gray-900'>
                               {messages.map((msg, i) => (
                                    <div
                                         key={i}
                                         className={`flex items-end ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                                    >
                                         {msg.role === 'bot' && (
-                                             <div className='w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center mr-2 text-sm'>
+                                             <div className='w-6 h-6 md:w-8 md:h-8 bg-blue-600 text-white rounded-full flex items-center justify-center mr-2 text-xs md:text-sm'>
                                                   🤖
                                              </div>
                                         )}
                                         <div
-                                             className={`max-w-[75%] p-3 rounded-xl relative text-sm  ${
+                                             className={`max-w-[85%] md:max-w-[75%] p-3 rounded-xl relative text-sm ${
                                                   msg.role === 'user'
                                                        ? 'bg-green-100 text-right dark:bg-green-900'
                                                        : 'bg-gray-200 dark:bg-gray-900'
@@ -295,7 +321,7 @@ const App: React.FC = () => {
                                              <div className='text-gray-500 text-xs mt-1 text-right'>{msg.timestamp}</div>
                                         </div>
                                         {msg.role === 'user' && (
-                                             <div className='w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center ml-2 text-sm'>
+                                             <div className='w-6 h-6 md:w-8 md:h-8 bg-green-500 text-white rounded-full flex items-center justify-center ml-2 text-xs md:text-sm'>
                                                   🧑
                                              </div>
                                         )}
@@ -303,7 +329,7 @@ const App: React.FC = () => {
                               ))}
                               {loading && (
                                    <div className='flex items-center space-x-2'>
-                                        <div className='w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm'>
+                                        <div className='w-6 h-6 md:w-8 md:h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs md:text-sm'>
                                              🤖
                                         </div>
                                         <div className='bg-gray-200 rounded-xl px-3 py-2 text-sm font-mono animate-pulse'>...</div>
