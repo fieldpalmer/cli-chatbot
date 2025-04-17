@@ -6,7 +6,19 @@ import { StringOutputParser } from '@langchain/core/output_parsers';
 import { BufferMemory, ConversationSummaryMemory, CombinedMemory } from 'langchain/memory';
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
+// Create a singleton Prisma client instance
+const globalForPrisma = global as unknown as { prisma: PrismaClient };
+
+const prisma =
+     globalForPrisma.prisma ||
+     new PrismaClient({
+          log: ['query', 'error', 'warn']
+     });
+
+if (process.env.NODE_ENV !== 'production') {
+     globalForPrisma.prisma = prisma;
+}
+
 const sessionMemories = new Map<string, CombinedMemory>();
 
 export const getResponse = async (input: string, sessionId: string, modelName = 'gpt-4'): Promise<string> => {

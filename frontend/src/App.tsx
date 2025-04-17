@@ -37,12 +37,6 @@ const App: React.FC = () => {
           import.meta.env.VITE_API_URL ||
           (import.meta.env.DEV ? 'http://localhost:3001' : 'https://chatbot-backend-blond-three.vercel.app');
 
-     console.log('Environment:', {
-          mode: import.meta.env.MODE,
-          apiUrl: import.meta.env.VITE_API_URL,
-          baseUrl: BASE_URL
-     });
-
      const API_URL = `${BASE_URL}/chat`;
      const HISTORY_URL = `${BASE_URL}/history`;
 
@@ -108,6 +102,7 @@ const App: React.FC = () => {
 
      const fetchSessions = async (attempt = 1) => {
           try {
+               console.log('Fetching sessions from:', `${HISTORY_URL}/sessions`);
                const res = await axios.get(`${HISTORY_URL}/sessions`);
                if (res.status === 200) {
                     const sessionArray = res.data.map((session: { id: string; name: string }) => ({
@@ -123,7 +118,7 @@ const App: React.FC = () => {
                     setTimeout(() => fetchSessions(attempt + 1), 2000 * attempt);
                } else {
                     setError({
-                         message: 'Failed to load chat sessions. Please refresh the page.',
+                         message: `Failed to connect to the server. Please check if the backend is running at ${BASE_URL}`,
                          isError: true
                     });
                }
