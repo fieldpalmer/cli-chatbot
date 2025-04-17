@@ -33,12 +33,53 @@ const App: React.FC = () => {
      const formatTime = (date: Date) => date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
      // Use local backend in development, Vercel in production
-     const BASE_URL = import.meta.env.DEV ? 'http://localhost:3001' : 'https://chatbot-backend-blond-three.vercel.app';
+     const BASE_URL =
+          import.meta.env.VITE_API_URL ||
+          (import.meta.env.DEV ? 'http://localhost:3001' : 'https://chatbot-backend-blond-three.vercel.app');
+
+     console.log('Environment:', {
+          mode: import.meta.env.MODE,
+          apiUrl: import.meta.env.VITE_API_URL,
+          baseUrl: BASE_URL
+     });
 
      const API_URL = `${BASE_URL}/chat`;
      const HISTORY_URL = `${BASE_URL}/history`;
 
      const generateSessionId = () => `session-${Date.now()}`;
+
+     const handleRenameSession = async (sessionId: string, newName: string) => {
+          try {
+               await axios.patch(`${HISTORY_URL}/${sessionId}`, {
+                    name: newName
+               });
+               setSessions(sessions.map((s) => (s.id === sessionId ? { ...s, name: newName } : s)));
+               setRenamingId(null);
+          } catch (err) {
+               console.error('Error renaming session:', err);
+               setError({
+                    message: 'Failed to rename chat session. Please try again.',
+                    isError: true
+               });
+          }
+     };
+
+     const handleDeleteSession = async (sessionId: string) => {
+          try {
+               await axios.delete(`${HISTORY_URL}/${sessionId}`);
+               setSessions(sessions.filter((s) => s.id !== sessionId));
+               if (sessionId === sessionId) {
+                    setSessionId(sessions[0]?.id || '');
+                    setMessages([]);
+               }
+          } catch (err) {
+               console.error('Error deleting session:', err);
+               setError({
+                    message: 'Failed to delete chat session. Please try again.',
+                    isError: true
+               });
+          }
+     };
 
      const createNewSession = async () => {
           try {
@@ -79,7 +120,7 @@ const App: React.FC = () => {
           } catch (err) {
                console.error(`Attempt ${attempt} failed fetching sessions:`, err);
                if (attempt < 3) {
-                    setTimeout(() => fetchSessions(attempt + 1), 2000 * attempt); // Increased delay
+                    setTimeout(() => fetchSessions(attempt + 1), 2000 * attempt);
                } else {
                     setError({
                          message: 'Failed to load chat sessions. Please refresh the page.',
@@ -174,11 +215,19 @@ const App: React.FC = () => {
      };
 
      return (
-          <div className='flex flex-col md:flex-row min-h-screen font-sans bg-gray-100 dark:bg-gray-900 text-black dark:text-white'>
+          <div
+               className={`flex flex-col md:flex-row min-h-screen font-sans ${
+                    darkMode ? 'bg-gray-950 text-gray-100' : 'bg-gray-50 text-gray-900'
+               }`}
+          >
                <div className='absolute top-4 right-4 z-20'>
                     <button
                          onClick={() => setIsMenuOpen(!isMenuOpen)}
-                         className='md:hidden px-3 py-1 rounded text-sm border hover:bg-gray-200 dark:hover:bg-gray-700'
+                         className={`md:hidden px-3 py-1 text-sm border ${
+                              darkMode
+                                   ? 'border-purple-500 bg-gray-900 hover:bg-gray-800 shadow-[0_0_5px_rgba(168,85,247,0.5)]'
+                                   : 'border-pink-500 bg-white hover:bg-gray-50 shadow-[0_0_5px_rgba(236,72,153,0.5)]'
+                         }`}
                     >
                          {isMenuOpen ? '✕' : '☰'}
                     </button>
@@ -186,28 +235,45 @@ const App: React.FC = () => {
 
                {/* Mobile Menu Overlay */}
                {isMenuOpen && (
-                    <div className='fixed inset-0 bg-black bg-opacity-50 z-10 md:hidden' onClick={() => setIsMenuOpen(false)} />
+                    <div
+                         className={`fixed inset-0 ${
+                              darkMode ? 'bg-black bg-opacity-75' : 'bg-gray-900 bg-opacity-50'
+                         } z-10 md:hidden`}
+                         onClick={() => setIsMenuOpen(false)}
+                    />
                )}
 
                {/* Sidebar */}
                <div
-                    className={`fixed md:static inset-y-0 left-0 w-64 bg-white dark:bg-gray-800 shadow-md p-4 transform transition-transform duration-200 ease-in-out z-20 ${
+                    className={`fixed md:static inset-y-0 left-0 w-64 shadow-md p-4 transform transition-transform duration-200 ease-in-out z-20 ${
                          isMenuOpen ? 'translate-x-0' : '-translate-x-full'
-                    } md:translate-x-0 md:w-80`}
+                    } md:translate-x-0 md:w-80 ${
+                         darkMode
+                              ? 'bg-gray-900 border-r border-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.3)]'
+                              : 'bg-white border-r border-pink-500 shadow-[0_0_10px_rgba(236,72,153,0.3)]'
+                    }`}
                >
                     <div className='flex justify-between items-center mb-4'>
-                         <h2 className='text-lg font-bold'>Sessions</h2>
+                         <h2 className={`text-lg font-bold ${darkMode ? 'text-purple-400' : 'text-pink-500'}`}>Sessions</h2>
                          <button
                               onClick={() => setDarkMode((prev) => !prev)}
-                              className='px-3 py-1 rounded text-sm border hover:bg-gray-200 dark:hover:bg-gray-700'
+                              className={`px-3 py-1 text-sm border ${
+                                   darkMode
+                                        ? 'border-purple-500 bg-gray-800 hover:bg-gray-700 shadow-[0_0_5px_rgba(168,85,247,0.5)]'
+                                        : 'border-pink-500 bg-gray-50 hover:bg-white shadow-[0_0_5px_rgba(236,72,153,0.5)]'
+                              }`}
                          >
-                              {darkMode ? '🌞 Light' : '🌙 Dark'}
+                              {darkMode ? '☀️ Light' : '🌙 Dark'}
                          </button>
                     </div>
 
                     <button
                          onClick={createNewSession}
-                         className='w-full bg-green-500 text-white font-semibold rounded mb-4 p-2 hover:bg-green-600'
+                         className={`w-full text-white font-semibold mb-4 p-2 border ${
+                              darkMode
+                                   ? 'bg-purple-600 hover:bg-purple-500 border-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.5)]'
+                                   : 'bg-pink-600 hover:bg-pink-500 border-pink-500 shadow-[0_0_10px_rgba(236,72,153,0.5)]'
+                         }`}
                     >
                          + New Chat
                     </button>
@@ -217,19 +283,16 @@ const App: React.FC = () => {
                               <li key={sesh.id} className='flex items-center justify-between'>
                                    {renamingId === sesh.id ? (
                                         <input
-                                             className='border p-1 rounded w-full mr-2'
+                                             className={`border p-1 w-full mr-2 ${
+                                                  darkMode
+                                                       ? 'border-purple-500 bg-gray-800 text-gray-100 shadow-[0_0_5px_rgba(168,85,247,0.3)]'
+                                                       : 'border-pink-500 bg-gray-50 text-gray-900 shadow-[0_0_5px_rgba(236,72,153,0.3)]'
+                                             }`}
                                              value={renameValue}
                                              onChange={(e) => setRenameValue(e.target.value)}
                                              onKeyDown={async (e) => {
                                                   if (e.key === 'Enter') {
-                                                       await axios.patch(`http://localhost:3001/history/${sesh.id}`, {
-                                                            name: renameValue
-                                                       });
-                                                       const updatedSessions = sessions.map((s) =>
-                                                            s.id === sesh.id ? { ...s, name: renameValue } : s
-                                                       );
-                                                       setSessions(updatedSessions);
-                                                       setRenamingId(null);
+                                                       await handleRenameSession(sesh.id, renameValue);
                                                   }
                                              }}
                                              autoFocus
@@ -240,8 +303,14 @@ const App: React.FC = () => {
                                                   setSessionId(sesh.id);
                                                   setIsMenuOpen(false);
                                              }}
-                                             className={`text-left w-full p-2 rounded ${
-                                                  sesh.id === sessionId ? 'bg-blue-600 text-white' : 'hover:bg-gray-200'
+                                             className={`text-left w-full p-2 ${
+                                                  sesh.id === sessionId
+                                                       ? darkMode
+                                                            ? 'bg-purple-600 text-white shadow-[0_0_10px_rgba(168,85,247,0.5)]'
+                                                            : 'bg-pink-600 text-white shadow-[0_0_10px_rgba(236,72,153,0.5)]'
+                                                       : darkMode
+                                                       ? 'hover:bg-gray-800'
+                                                       : 'hover:bg-gray-50'
                                              }`}
                                         >
                                              {sesh.name}
@@ -254,20 +323,23 @@ const App: React.FC = () => {
                                                   setRenamingId(sesh.id);
                                                   setRenameValue(sesh.name);
                                              }}
-                                             className='text-sm text-gray-500 hover:text-black'
+                                             className={`text-sm ${
+                                                  darkMode
+                                                       ? 'text-gray-400 hover:text-purple-400'
+                                                       : 'text-gray-500 hover:text-pink-500'
+                                             }`}
                                         >
                                              ✏️
                                         </button>
                                         <button
                                              onClick={async () => {
-                                                  await axios.delete(`http://localhost:3001/history/${sesh.id}`);
-                                                  setSessions(sessions.filter((s) => s.id !== sesh.id));
-                                                  if (sessionId === sesh.id) {
-                                                       setSessionId(sessions[0]?.id || '');
-                                                       setMessages([]);
-                                                  }
+                                                  await handleDeleteSession(sesh.id);
                                              }}
-                                             className='text-sm text-gray-400 hover:text-red-500'
+                                             className={`text-sm ${
+                                                  darkMode
+                                                       ? 'text-gray-400 hover:text-purple-400'
+                                                       : 'text-gray-500 hover:text-pink-500'
+                                             }`}
                                         >
                                              🗑
                                         </button>
@@ -280,33 +352,59 @@ const App: React.FC = () => {
                {/* Main Chat Area */}
                <div className='flex-1 p-4 md:p-6 flex flex-col items-center'>
                     <div className='w-full max-w-2xl'>
-                         <h1 className='text-xl md:text-2xl font-bold text-center mb-4'>🧠 LangChain Chatbot</h1>
+                         <h1
+                              className={`text-xl md:text-2xl font-bold text-center mb-4 ${
+                                   darkMode ? 'text-cyan-400' : 'text-pink-500'
+                              }`}
+                         >
+                              CyberChat
+                         </h1>
 
                          {error.isError && (
                               <div
-                                   className='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4'
+                                   className={`px-4 py-3 relative mb-4 ${
+                                        darkMode
+                                             ? 'bg-red-900 border border-red-800 text-red-200 shadow-[0_0_10px_rgba(239,68,68,0.5)]'
+                                             : 'bg-red-100 border border-red-400 text-red-700 shadow-[0_0_10px_rgba(239,68,68,0.3)]'
+                                   }`}
                                    role='alert'
                               >
                                    <span className='block sm:inline'>{error.message}</span>
                               </div>
                          )}
 
-                         <div className='bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 h-[calc(100vh-16rem)] md:h-[70vh] overflow-y-auto space-y-4 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100 dark:scrollbar-thumb-gray-600 dark:scrollbar-track-gray-900'>
+                         <div
+                              className={`shadow-md p-4 h-[calc(100vh-16rem)] md:h-[70vh] overflow-y-auto space-y-4 scrollbar-thin ${
+                                   darkMode
+                                        ? 'bg-gray-900 scrollbar-thumb-purple-500 scrollbar-track-gray-800'
+                                        : 'bg-white scrollbar-thumb-pink-500 scrollbar-track-gray-100'
+                              }`}
+                         >
                               {messages.map((msg, i) => (
                                    <div
                                         key={i}
                                         className={`flex items-end ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                                    >
                                         {msg.role === 'bot' && (
-                                             <div className='w-6 h-6 md:w-8 md:h-8 bg-blue-600 text-white rounded-full flex items-center justify-center mr-2 text-xs md:text-sm'>
+                                             <div
+                                                  className={`w-6 h-6 md:w-8 md:h-8 flex items-center justify-center mr-2 text-xs md:text-sm ${
+                                                       darkMode
+                                                            ? 'bg-cyan-500 text-white shadow-[0_0_10px_rgba(6,182,212,0.5)]'
+                                                            : 'bg-pink-500 text-white shadow-[0_0_10px_rgba(236,72,153,0.5)]'
+                                                  }`}
+                                             >
                                                   🤖
                                              </div>
                                         )}
                                         <div
-                                             className={`max-w-[85%] md:max-w-[75%] p-3 rounded-xl relative text-sm ${
+                                             className={`max-w-[85%] md:max-w-[75%] p-3 relative text-sm ${
                                                   msg.role === 'user'
-                                                       ? 'bg-green-100 text-right dark:bg-green-900'
-                                                       : 'bg-gray-200 dark:bg-gray-900'
+                                                       ? darkMode
+                                                            ? 'bg-purple-600 text-white shadow-[0_0_10px_rgba(168,85,247,0.5)]'
+                                                            : 'bg-pink-600 text-white shadow-[0_0_10px_rgba(236,72,153,0.5)]'
+                                                       : darkMode
+                                                       ? 'bg-gray-800 text-gray-100'
+                                                       : 'bg-gray-50 text-gray-900'
                                              }`}
                                         >
                                              <ReactMarkdown
@@ -318,21 +416,45 @@ const App: React.FC = () => {
                                              >
                                                   {msg.content}
                                              </ReactMarkdown>
-                                             <div className='text-gray-500 text-xs mt-1 text-right'>{msg.timestamp}</div>
+                                             <div
+                                                  className={`text-xs mt-1 text-right ${
+                                                       darkMode ? 'text-gray-400' : 'text-gray-500'
+                                                  }`}
+                                             >
+                                                  {msg.timestamp}
+                                             </div>
                                         </div>
                                         {msg.role === 'user' && (
-                                             <div className='w-6 h-6 md:w-8 md:h-8 bg-green-500 text-white rounded-full flex items-center justify-center ml-2 text-xs md:text-sm'>
-                                                  🧑
+                                             <div
+                                                  className={`w-6 h-6 md:w-8 md:h-8 flex items-center justify-center ml-2 text-xs md:text-sm ${
+                                                       darkMode
+                                                            ? 'bg-purple-600 text-white shadow-[0_0_10px_rgba(168,85,247,0.5)]'
+                                                            : 'bg-pink-600 text-white shadow-[0_0_10px_rgba(236,72,153,0.5)]'
+                                                  }`}
+                                             >
+                                                  👤
                                              </div>
                                         )}
                                    </div>
                               ))}
                               {loading && (
                                    <div className='flex items-center space-x-2'>
-                                        <div className='w-6 h-6 md:w-8 md:h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs md:text-sm'>
+                                        <div
+                                             className={`w-6 h-6 md:w-8 md:h-8 flex items-center justify-center text-xs md:text-sm ${
+                                                  darkMode
+                                                       ? 'bg-cyan-500 text-white shadow-[0_0_10px_rgba(6,182,212,0.5)]'
+                                                       : 'bg-pink-500 text-white shadow-[0_0_10px_rgba(236,72,153,0.5)]'
+                                             }`}
+                                        >
                                              🤖
                                         </div>
-                                        <div className='bg-gray-200 rounded-xl px-3 py-2 text-sm font-mono animate-pulse'>...</div>
+                                        <div
+                                             className={`px-3 py-2 text-sm font-mono animate-pulse ${
+                                                  darkMode ? 'bg-gray-800' : 'bg-gray-50'
+                                             }`}
+                                        >
+                                             ...
+                                        </div>
                                    </div>
                               )}
                          </div>
@@ -343,13 +465,21 @@ const App: React.FC = () => {
                                    onChange={(e) => setInput(e.target.value)}
                                    onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
                                    placeholder='Type a message...'
-                                   className='flex-grow px-4 py-2 rounded-l-md border border-gray-300 focus:outline-none dark:bg-gray-800 dark:text-white'
+                                   className={`flex-grow px-4 py-2 border focus:outline-none ${
+                                        darkMode
+                                             ? 'border-purple-500 bg-gray-800 text-gray-100 focus:border-purple-400 shadow-[0_0_5px_rgba(168,85,247,0.3)]'
+                                             : 'border-pink-500 bg-white text-gray-900 focus:border-pink-400 shadow-[0_0_5px_rgba(236,72,153,0.3)]'
+                                   }`}
                                    disabled={loading}
                               />
                               <button
                                    onClick={sendMessage}
                                    disabled={loading}
-                                   className='bg-blue-600 text-white px-4 py-2 rounded-r-md hover:bg-blue-700 disabled:opacity-50'
+                                   className={`px-4 py-2 text-white disabled:opacity-50 border ${
+                                        darkMode
+                                             ? 'bg-purple-600 hover:bg-purple-500 border-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.5)]'
+                                             : 'bg-pink-600 hover:bg-pink-500 border-pink-500 shadow-[0_0_10px_rgba(236,72,153,0.5)]'
+                                   }`}
                               >
                                    Send
                               </button>
